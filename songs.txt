@@ -1,1 +1,1 @@
-0000, Ray(超かぐや姫), songs/ray(超かぐや姫)/ray.mp3, songs/ray(超かぐや姫)/ray.mid, songs/ray(超かぐや姫)/ray.lrc, songs/ray(超かぐや姫)/ray.png
+0000, Ray(超かぐや姫), songs/ray.mp3, songs/ray.mid, songs/ray.lrc, songs/ray.png
