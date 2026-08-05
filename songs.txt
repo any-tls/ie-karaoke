@@ -1,1 +1,1 @@
-0000, Ray(超かぐや姫), songs/ray.mp3, songs/ray.mid, songs/ray.lrc, songs/ray.png
+0000, Ray, 超かぐや姫/BUMP OF CHICKEN, songs/ray.mp3, songs/ray.mid, songs/ray.lrc, songs/ray.png
