@@ -1,0 +1,2119 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Karaoke Studio Pro - 本格カラオケ＆音程分析</title>
+  <style>
+    :root {
+      --bg-dark: #0b0e17;
+      --bg-card: #151b2b;
+      --bg-card-hover: #1e273d;
+      --accent-primary: #00e5ff;
+      --accent-secondary: #ff2a85;
+      --accent-gold: #ffd700;
+      --accent-green: #00e676;
+      --accent-red: #ff3d57;
+      --text-main: #f4f7fb;
+      --text-muted: #8e9bb5;
+      --border-subtle: rgba(255, 255, 255, 0.1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+      overflow: hidden;
+    }
+
+    /* 画面切り替え管理 */
+    .screen {
+      display: none;
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      inset: 0;
+      overflow-y: auto;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+    .screen.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ヘッダー */
+    .app-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 20px;
+      background: rgba(15, 20, 34, 0.9);
+      border-bottom: 1px solid var(--border-subtle);
+      backdrop-filter: blur(10px);
+      flex-shrink: 0;
+    }
+    .app-title {
+      font-size: 1.2rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 0.04em;
+    }
+
+    /* ボタン共通 */
+    .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.12s ease, opacity 0.15s ease, background 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      color: var(--text-main);
+      background: var(--bg-card-hover);
+    }
+    .btn:active {
+      transform: scale(0.96);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #00c6ff, #0072ff);
+      color: #fff;
+      box-shadow: 0 4px 15px rgba(0, 114, 255, 0.35);
+    }
+    .btn-sing {
+      background: linear-gradient(135deg, #ff2a85, #ff7b00);
+      color: #fff;
+      font-size: 1.15rem;
+      padding: 14px 36px;
+      border-radius: 999px;
+      box-shadow: 0 6px 24px rgba(255, 42, 133, 0.45);
+    }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+    }
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 0.82rem;
+    }
+
+    /* 1. 曲選択画面 */
+    .song-list-container {
+      padding: 16px 20px 40px;
+      max-width: 960px;
+      width: 100%;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .latency-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(0, 229, 255, 0.08);
+      border: 1px solid rgba(0, 229, 255, 0.25);
+      border-radius: 12px;
+      padding: 10px 16px;
+      font-size: 0.85rem;
+    }
+    .song-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 14px 18px;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease;
+      gap: 14px;
+    }
+    .song-card:hover {
+      background: var(--bg-card-hover);
+      border-color: rgba(0, 229, 255, 0.4);
+    }
+    .song-thumb {
+      width: 64px;
+      height: 36px;
+      border-radius: 6px;
+      object-fit: cover;
+      background: #232c42;
+      flex-shrink: 0;
+    }
+    .song-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .song-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .song-artist {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .song-score-badge {
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .score-val {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: var(--accent-gold);
+    }
+    .score-acc {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* 2. 演奏準備画面 */
+    .prep-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      text-align: center;
+      gap: 20px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .prep-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 24px;
+      width: 100%;
+    }
+    .key-control {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      margin-top: 14px;
+    }
+    .key-display {
+      font-size: 1.6rem;
+      font-weight: 800;
+      min-width: 80px;
+      color: var(--accent-primary);
+    }
+    .status-text {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      min-height: 1.2em;
+    }
+
+    /* 3. 演奏画面（16:9 ステージ＆横画面対応） */
+    #screen-play {
+      background: #000;
+      overflow: hidden;
+      justify-content: center;
+      align-items: center;
+      padding: 0;
+    }
+    .stage-16-9 {
+      position: relative;
+      width: 100vw;
+      height: 56.25vw; /* 16:9 */
+      max-height: 100vh;
+      max-width: 177.78vh; /* 16:9 */
+      background: #0d111a;
+      overflow: hidden;
+      box-shadow: 0 0 40px rgba(0,0,0,0.9);
+    }
+    .stage-bg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: brightness(0.32) blur(1px);
+      z-index: 1;
+    }
+    .stage-overlay-grad {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(8,12,22,0.75) 0%, rgba(8,12,22,0.2) 55%, rgba(8,12,22,0.92) 100%);
+      z-index: 2;
+    }
+    #pitch-canvas {
+      position: absolute;
+      top: 11%;
+      left: 0;
+      width: 100%;
+      height: 61%;
+      z-index: 3;
+    }
+    /* 演奏中HUD */
+    .play-hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 11%;
+      z-index: 4;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      background: rgba(10, 14, 24, 0.55);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .hud-song-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+      min-width: 0;
+    }
+    .hud-title {
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 240px;
+    }
+    .hud-badge {
+      background: rgba(255,255,255,0.12);
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .hud-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .hud-live-stats {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.82rem;
+    }
+    .live-note-pill {
+      background: rgba(0, 229, 255, 0.15);
+      border: 1px solid rgba(0, 229, 255, 0.4);
+      color: var(--accent-primary);
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-weight: 800;
+      min-width: 64px;
+      text-align: center;
+    }
+
+    /* 歌詞エリア（下部28%） */
+    .lyrics-box {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 28%;
+      z-index: 4;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 4px 24px 10px;
+      text-align: center;
+      pointer-events: none;
+    }
+    .lyric-line-current {
+      font-size: clamp(1.15rem, 3.1vw, 2.05rem);
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      line-height: 1.3;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.95), 0 0 2px #000;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+    .lyric-line-next {
+      font-size: clamp(0.85rem, 2.0vw, 1.3rem);
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.55);
+      text-shadow: 0 2px 6px rgba(0,0,0,0.9);
+    }
+    /* カラオケワイプ用単語スパン */
+    .karaoke-word {
+      display: inline-block;
+      background-image: linear-gradient(90deg, #00e5ff var(--wipe, 0%), #ffffff var(--wipe, 0%));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.95));
+    }
+
+    /* カウントダウンオーバーレイ */
+    .countdown-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      background: rgba(8, 12, 22, 0.78);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .countdown-overlay.active {
+      display: flex;
+    }
+    .countdown-num {
+      font-size: 5rem;
+      font-weight: 900;
+      color: var(--accent-primary);
+      text-shadow: 0 0 30px rgba(0, 229, 255, 0.7);
+    }
+
+    /* 縦画面警告オーバーレイ（スマホ縦持ち時） */
+    .portrait-warning {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(11, 14, 23, 0.96);
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+      gap: 16px;
+    }
+    @media screen and (orientation: portrait) and (max-width: 768px) {
+      body.in-play-mode .portrait-warning {
+        display: flex;
+      }
+    }
+
+    /* 4. 遅延キャリブレーション画面 */
+    .calib-container {
+      max-width: 640px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .card-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 18px;
+    }
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    input[type="range"] {
+      flex: 1;
+      accent-color: var(--accent-primary);
+      height: 6px;
+    }
+
+    /* 5. 採点＆詳細分析画面 */
+    .result-container {
+      max-width: 960px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 18px 20px 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .score-hero {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      background: linear-gradient(135deg, #162038, #1c1530);
+      border: 1px solid rgba(0, 229, 255, 0.3);
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
+    }
+    .hero-item-label {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .hero-score-big {
+      font-size: 2.6rem;
+      font-weight: 900;
+      color: var(--accent-gold);
+      line-height: 1.1;
+    }
+    .hero-sub-big {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--accent-primary);
+      line-height: 1.2;
+    }
+    .new-record-tag {
+      display: inline-block;
+      background: var(--accent-secondary);
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 999px;
+      margin-top: 4px;
+    }
+    #analysis-canvas {
+      width: 100%;
+      height: 150px;
+      background: #0d121f;
+      border-radius: 10px;
+      border: 1px solid var(--border-subtle);
+      cursor: pointer;
+    }
+    .legend-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+    .legend-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+      margin-right: 4px;
+    }
+    .miss-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .miss-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 61, 87, 0.1);
+      border-left: 4px solid var(--accent-red);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.86rem;
+      gap: 10px;
+    }
+    .miss-time {
+      font-family: monospace;
+      font-weight: 800;
+      color: var(--accent-primary);
+      white-space: nowrap;
+    }
+    .miss-lyric {
+      flex: 1;
+      font-weight: 600;
+    }
+    .miss-tendency {
+      font-size: 0.78rem;
+      color: #ff8a9b;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- スマホ縦持ち警告 -->
+  <div class="portrait-warning">
+    <div style="font-size: 3rem;">📱🔄</div>
+    <h2>端末を横向き（ランドスケープ）にしてください</h2>
+    <p style="color: var(--text-muted); font-size: 0.9rem;">音程バーと歌詞を最適に表示するため横画面モードで動作します。</p>
+    <button class="btn btn-outline" onclick="stopAndExitPlay()">曲選択に戻る</button>
+  </div>
+
+  <!-- =========================================================
+       1. 曲選択画面
+       ========================================================= -->
+  <section id="screen-select" class="screen active">
+    <header class="app-header">
+      <div class="app-title">🎤 KARAOKE STUDIO PRO</div>
+      <button class="btn btn-sm" onclick="openCalibration()">⚙️ 遅延テスト (<span id="header-latency-val">0</span>ms)</button>
+    </header>
+
+    <div class="song-list-container">
+      <div class="latency-banner">
+        <span>🎧 現在のマイク遅延補正: <strong id="banner-latency-val" style="color: var(--accent-primary);">0 ms</strong></span>
+        <button class="btn btn-sm btn-outline" onclick="openCalibration()">調整する</button>
+      </div>
+
+      <div id="song-list" style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="text-align:center; padding: 40px; color: var(--text-muted);">楽曲リスト (songs.txt) を読み込み中...</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       2. 演奏準備画面
+       ========================================================= -->
+  <section id="screen-prep" class="screen">
+    <header class="app-header">
+      <button class="btn btn-sm" onclick="showScreen('screen-select')">← 曲一覧へ</button>
+      <div class="app-title">演奏準備</div>
+      <div style="width: 72px;"></div>
+    </header>
+
+    <div class="prep-container">
+      <div class="prep-card">
+        <img id="prep-bg-preview" src="" alt="" style="width: 100%; max-height: 150px; object-fit: cover; border-radius: 10px; margin-bottom: 14px; background: #1e273d;" />
+        <h2 id="prep-song-title" style="font-size: 1.4rem;">曲名</h2>
+        <p id="prep-song-artist" style="color: var(--text-muted); margin-top: 4px;">歌手名</p>
+
+        <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-subtle);">
+          <div style="font-size: 0.85rem; color: var(--text-muted);">キー設定（移調 ±6）</div>
+          <div class="key-control">
+            <button class="btn" onclick="changePrepKey(-1)">♭ -1</button>
+            <div id="prep-key-display" class="key-display">±0</div>
+            <button class="btn" onclick="changePrepKey(1)">♯ +1</button>
+          </div>
+        </div>
+      </div>
+
+      <button id="btn-start-sing" class="btn btn-sing" onclick="prepareAndStartPerformance()">🎤 歌う（全画面スタート）</button>
+      <div id="prep-status" class="status-text">※ボタンを押すとマイク許可・全画面化を行い3秒後に開始します</div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       3. 演奏画面（16:9 ステージ）
+       ========================================================= -->
+  <section id="screen-play" class="screen">
+    <div class="stage-16-9">
+      <img id="play-bg-img" class="stage-bg" src="" alt="" />
+      <div class="stage-overlay-grad"></div>
+
+      <!-- 上部HUD -->
+      <div class="play-hud">
+        <div class="hud-song-meta">
+          <span id="hud-song-title" class="hud-title">曲名</span>
+          <span class="hud-badge">キー: <span id="hud-key-val">±0</span></span>
+          <span class="hud-badge" id="hud-time-val">00:00 / 00:00</span>
+        </div>
+
+        <div class="hud-live-stats">
+          <div id="hud-user-note" class="live-note-pill">--</div>
+          <div class="hud-controls">
+            <button class="btn btn-sm" onclick="changeLiveKey(-1)" title="キーを下げる">♭</button>
+            <button class="btn btn-sm" onclick="changeLiveKey(1)" title="キーを上げる">♯</button>
+            <button class="btn btn-sm" style="background: rgba(255,61,87,0.3); border: 1px solid var(--accent-red);" onclick="finishPerformanceEarly()">終了・採点</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 音程バー描画Canvas -->
+      <canvas id="pitch-canvas"></canvas>
+
+      <!-- 歌詞エリア -->
+      <div class="lyrics-box">
+        <div id="lyric-current" class="lyric-line-current">♪ イントロ ♪</div>
+        <div id="lyric-next" class="lyric-line-next"></div>
+      </div>
+
+      <!-- 3秒カウントダウン -->
+      <div id="countdown-overlay" class="countdown-overlay">
+        <div style="font-size: 1.1rem; color: var(--text-muted); margin-bottom: 8px;">GET READY</div>
+        <div id="countdown-num" class="countdown-num">3</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       4. 遅延キャリブレーション画面
+       ========================================================= -->
+  <section id="screen-calib" class="screen">
+    <header class="app-header">
+      <button class="btn btn-sm" onclick="closeCalibration()">← 戻る</button>
+      <div class="app-title">遅延テスト（キャリブレーション）</div>
+      <div style="width: 64px;"></div>
+    </header>
+
+    <div class="calib-container">
+      <div class="card-box">
+        <h3 style="margin-bottom: 8px;">1. 自動ビープ音測定</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+          スピーカーからテスト音を3回鳴らし、マイクが音を拾うまでの遅延時間（レイテンシー）を自動計測します。<br>
+          ※イヤホンを外し、スピーカーの音をマイクが拾える状態で実行してください。
+        </p>
+        <div style="margin-top: 14px; display: flex; align-items: center; gap: 12px;">
+          <button id="btn-auto-calib" class="btn btn-primary" onclick="runAutoLatencyTest()">🔊 自動テスト開始</button>
+          <span id="calib-status" style="font-size: 0.85rem; color: var(--accent-primary);">待機中</span>
+        </div>
+      </div>
+
+      <div class="card-box">
+        <h3 style="margin-bottom: 8px;">2. 手動スライダー微調整</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted);">
+          歌声が音程バーより遅れて判定される場合はプラス（+）方向へ調整してください。（一般的なスマホブラウザ: 80ms 〜 220ms）
+        </p>
+        <div class="slider-row">
+          <span style="font-size: 0.8rem;">-200ms</span>
+          <input type="range" id="latency-slider" min="-200" max="500" step="5" value="0" oninput="onLatencySliderChange(this.value)" />
+          <span style="font-size: 0.8rem;">+500ms</span>
+        </div>
+        <div style="text-align: center; margin-top: 10px; font-size: 1.3rem; font-weight: 800; color: var(--accent-primary);">
+          設定値: <span id="calib-ms-display">0</span> ms
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       5. 採点＆詳細分析画面
+       ========================================================= -->
+  <section id="screen-result" class="screen">
+    <header class="app-header">
+      <button class="btn btn-sm" onclick="showScreen('screen-select')">← 曲選択へ</button>
+      <div class="app-title">採点結果＆音程ズレ分析</div>
+      <button class="btn btn-sm btn-primary" onclick="retryCurrentSong()">もう一度歌う</button>
+    </header>
+
+    <div class="result-container">
+      <div class="score-hero">
+        <div>
+          <div class="hero-item-label">総合スコア</div>
+          <div id="res-score" class="hero-score-big">0.00<span style="font-size: 1rem;">点</span></div>
+          <div id="res-new-record" class="new-record-tag" style="display:none;">NEW RECORD!</div>
+        </div>
+        <div>
+          <div class="hero-item-label">音程正確率</div>
+          <div id="res-accuracy" class="hero-sub-big">0.0%</div>
+          <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 4px;">判定幅: ±0.5半音</div>
+        </div>
+        <div>
+          <div class="hero-item-label">自己ベスト</div>
+          <div id="res-highscore" class="hero-sub-big" style="color: var(--accent-gold);">0.00<span style="font-size: 0.9rem;">点</span></div>
+          <div id="res-tendency-summary" style="font-size: 0.78rem; color: var(--text-muted); margin-top: 4px;">傾向分析中</div>
+        </div>
+      </div>
+
+      <div class="card-box">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <h3>📊 曲全体タイムライン音程分析</h3>
+          <span id="analysis-hover-info" style="font-size: 0.8rem; color: var(--accent-primary);">グラフをタップして詳細確認</span>
+        </div>
+        <canvas id="analysis-canvas"></canvas>
+        <div class="legend-row">
+          <span><i class="legend-dot" style="background: var(--accent-green);"></i>正確 (Good)</span>
+          <span><i class="legend-dot" style="background: var(--accent-gold);"></i>ややズレ</span>
+          <span><i class="legend-dot" style="background: var(--accent-red);"></i>音程ミス多発</span>
+          <span><i class="legend-dot" style="background: #2b354d;"></i>間奏・休符</span>
+        </div>
+      </div>
+
+      <div class="card-box">
+        <h3>🎯 重点練習ポイント（音程がズレたフレーズ）</h3>
+        <div id="miss-phrases-list" class="miss-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <script>
+    /* =========================================================================
+       1. グローバル状態管理 & LocalStorage
+       ========================================================================= */
+    const STORAGE_KEY_LATENCY = 'karaoke_pro_latency_ms';
+    const STORAGE_KEY_SCORES  = 'karaoke_pro_highscores';
+
+    const state = {
+      songs: [],
+      currentSong: null,
+      keyShift: 0,
+      latencyMs: parseInt(localStorage.getItem(STORAGE_KEY_LATENCY) || '120', 10),
+      highScores: JSON.parse(localStorage.getItem(STORAGE_KEY_SCORES) || '{}'),
+
+      // 解析済み楽曲データ
+      midiData: null, // { notes: [{start, end, note}], measures: [time...], minNote, maxNote, duration }
+      lrcData: null,  // { hasWordTags: bool, lines: [{time, endTime, text, words:[{time, text}]}] }
+
+      // Web Audio & マイク
+      audioCtx: null,
+      micStream: null,
+      micAnalyser: null,
+      bgAudioEl: null,
+      bgSourceNode: null,
+      pitchShiftNode: null,
+      isPlaying: false,
+      animFrameId: null,
+
+      // リアルタイム歌唱・採点ログ
+      userPitchHistory: [], // { time, rawNote, shiftedTarget, diff, isGood }
+      particles: [],
+      noteSmoothBuffer: [],
+      lastValidNote: null,
+      lastValidTime: 0
+    };
+
+    const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    function midiToNoteName(midiNum) {
+      const rounded = Math.round(midiNum);
+      const name = NOTE_NAMES[((rounded % 12) + 12) % 12];
+      const oct = Math.floor(rounded / 12) - 1;
+      return `${name}${oct}`;
+    }
+
+    function formatTime(sec) {
+      if (!isFinite(sec) || sec < 0) sec = 0;
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function updateLatencyUI() {
+      document.getElementById('header-latency-val').textContent = state.latencyMs;
+      document.getElementById('banner-latency-val').textContent = `${state.latencyMs} ms`;
+      document.getElementById('calib-ms-display').textContent = state.latencyMs;
+      document.getElementById('latency-slider').value = state.latencyMs;
+    }
+
+    function showScreen(id) {
+      document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      if (id === 'screen-play') {
+        document.body.classList.add('in-play-mode');
+      } else {
+        document.body.classList.remove('in-play-mode');
+      }
+    }
+
+    /* =========================================================================
+       2. 楽曲リスト (songs.txt) 読み込み
+       ========================================================================= */
+    async function loadSongsTxt() {
+      const listEl = document.getElementById('song-list');
+      try {
+        const res = await fetch(`songs.txt?t=${Date.now()}`);
+        if (!res.ok) throw new Error('songs.txt not found');
+        const text = await res.text();
+        const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#'));
+
+        state.songs = lines.map(line => {
+          const parts = line.split(',').map(p => p.trim());
+          return {
+            id: parts[0] || '0000',
+            title: parts[1] || 'Unknown Title',
+            artist: parts[2] || 'Unknown Artist',
+            audioUrl: parts[3] || '',
+            midiUrl: parts[4] || '',
+            lrcUrl: parts[5] || '',
+            bgUrl: parts[6] || ''
+          };
+        });
+
+        renderSongList();
+      } catch (err) {
+        console.warn('songs.txt読み込みエラー:', err);
+        listEl.innerHTML = `
+          <div class="card-box" style="text-align:center;">
+            <p style="color: var(--accent-red); font-weight:700;">songs.txt が見つかりませんでした</p>
+            <p style="font-size:0.84rem; color:var(--text-muted); margin: 8px 0 14px;">
+              GitHub Pages等のサーバー上で index.html と同じ階層に songs.txt を配置してください。<br>
+              （動作確認用の内蔵デモ曲でテストすることも可能です）
+            </p>
+            <button class="btn btn-primary" onclick="loadDemoSong()">🎵 内蔵デモ曲（キラキラ星）でテスト</button>
+          </div>
+        `;
+      }
+    }
+
+    function renderSongList() {
+      const listEl = document.getElementById('song-list');
+      listEl.innerHTML = '';
+      state.songs.forEach(song => {
+        const record = state.highScores[song.id];
+        const scoreHtml = record
+          ? `<div class="score-val">${record.score.toFixed(2)}点</div><div class="score-acc">正確率 ${record.accuracy.toFixed(1)}%</div>`
+          : `<div class="score-acc">未プレイ</div>`;
+
+        const card = document.createElement('div');
+        card.className = 'song-card';
+        card.innerHTML = `
+          <img class="song-thumb" src="${song.bgUrl}" onerror="this.style.visibility='hidden'" alt="" />
+          <div class="song-info">
+            <div class="song-title">${escapeHtml(song.title)}</div>
+            <div class="song-artist">${escapeHtml(song.artist)}</div>
+          </div>
+          <div class="song-score-badge">${scoreHtml}</div>
+        `;
+        card.onclick = () => selectSong(song);
+        listEl.appendChild(card);
+      });
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+    }
+
+    function selectSong(song) {
+      state.currentSong = song;
+      state.keyShift = 0;
+      document.getElementById('prep-song-title').textContent = song.title;
+      document.getElementById('prep-song-artist').textContent = song.artist;
+      document.getElementById('prep-bg-preview').src = song.bgUrl || '';
+      document.getElementById('prep-key-display').textContent = '±0';
+      document.getElementById('prep-status').textContent = '※ボタンを押すとマイク許可・全画面化を行い3秒後に開始します';
+      showScreen('screen-prep');
+    }
+
+    function changePrepKey(delta) {
+      state.keyShift = Math.max(-6, Math.min(6, state.keyShift + delta));
+      document.getElementById('prep-key-display').textContent = state.keyShift > 0 ? `+${state.keyShift}` : (state.keyShift === 0 ? '±0' : `${state.keyShift}`);
+    }
+
+    /* =========================================================================
+       3. SMF (.mid) バイナリパーサー（メロディ単音＆小節線抽出）
+       ========================================================================= */
+    function parseMidiArrayBuffer(buffer) {
+      const view = new DataView(buffer);
+      let pos = 0;
+
+      function readStr(len) {
+        let s = '';
+        for (let i = 0; i < len; i++) s += String.fromCharCode(view.getUint8(pos++));
+        return s;
+      }
+      function readUint32() { const v = view.getUint32(pos); pos += 4; return v; }
+      function readUint16() { const v = view.getUint16(pos); pos += 2; return v; }
+      function readVarLen() {
+        let val = 0;
+        while (true) {
+          const b = view.getUint8(pos++);
+          val = (val << 7) | (b & 0x7f);
+          if (!(b & 0x80)) break;
+        }
+        return val;
+      }
+
+      if (readStr(4) !== 'MThd') throw new Error('Invalid MIDI header');
+      const headerLen = readUint32();
+      const format = readUint16();
+      const numTracks = readUint16();
+      const division = readUint16();
+      pos = 8 + headerLen;
+
+      const tempoEvents = [{ tick: 0, usPerBeat: 500000 }]; // デフォルト120BPM
+      const timeSigEvents = [{ tick: 0, num: 4, den: 4 }];
+      const rawNotes = [];
+      let maxTick = 0;
+
+      for (let t = 0; t < numTracks; t++) {
+        if (pos >= view.byteLength) break;
+        const chunkType = readStr(4);
+        const chunkLen = readUint32();
+        const trackEnd = pos + chunkLen;
+        if (chunkType !== 'MTrk') {
+          pos = trackEnd;
+          continue;
+        }
+
+        let tick = 0;
+        let runningStatus = 0;
+        const activeNotes = new Map(); // note -> startTick
+
+        while (pos < trackEnd) {
+          const delta = readVarLen();
+          tick += delta;
+          if (tick > maxTick) maxTick = tick;
+
+          let status = view.getUint8(pos);
+          if (status < 0x80) {
+            status = runningStatus;
+          } else {
+            pos++;
+            if (status < 0xf0) runningStatus = status;
+          }
+
+          const type = status & 0xf0;
+          if (type === 0x90) { // Note On
+            const note = view.getUint8(pos++);
+            const vel = view.getUint8(pos++);
+            if (vel > 0) {
+              if (activeNotes.has(note)) {
+                rawNotes.push({ startTick: activeNotes.get(note), endTick: tick, note });
+              }
+              activeNotes.set(note, tick);
+            } else {
+              if (activeNotes.has(note)) {
+                rawNotes.push({ startTick: activeNotes.get(note), endTick: tick, note });
+                activeNotes.delete(note);
+              }
+            }
+          } else if (type === 0x80) { // Note Off
+            const note = view.getUint8(pos++);
+            pos++; // velocity
+            if (activeNotes.has(note)) {
+              rawNotes.push({ startTick: activeNotes.get(note), endTick: tick, note });
+              activeNotes.delete(note);
+            }
+          } else if (type === 0xa0 || type === 0xb0 || type === 0xe0) {
+            pos += 2;
+          } else if (type === 0xc0 || type === 0xd0) {
+            pos += 1;
+          } else if (status === 0xff) { // Meta Event
+            const metaType = view.getUint8(pos++);
+            const len = readVarLen();
+            if (metaType === 0x51 && len === 3) {
+              const usPerBeat = (view.getUint8(pos) << 16) | (view.getUint8(pos + 1) << 8) | view.getUint8(pos + 2);
+              tempoEvents.push({ tick, usPerBeat });
+            } else if (metaType === 0x58 && len >= 2) {
+              const num = view.getUint8(pos);
+              const den = Math.pow(2, view.getUint8(pos + 1));
+              timeSigEvents.push({ tick, num, den });
+            }
+            pos += len;
+          } else if (status === 0xf0 || status === 0xf7) {
+            const len = readVarLen();
+            pos += len;
+          }
+        }
+        pos = trackEnd;
+      }
+
+      // テンポマップ構築（Tick -> 秒変換）
+      tempoEvents.sort((a, b) => a.tick - b.tick);
+      const segments = [];
+      let accSec = 0;
+      for (let i = 0; i < tempoEvents.length; i++) {
+        const cur = tempoEvents[i];
+        if (i > 0) {
+          const prev = tempoEvents[i - 1];
+          accSec += ((cur.tick - prev.tick) / division) * (prev.usPerBeat / 1e6);
+        }
+        segments.push({ tick: cur.tick, sec: accSec, usPerBeat: cur.usPerBeat });
+      }
+
+      function tickToSec(targetTick) {
+        let seg = segments[0];
+        for (let i = 1; i < segments.length; i++) {
+          if (segments[i].tick <= targetTick) seg = segments[i];
+          else break;
+        }
+        return seg.sec + ((targetTick - seg.tick) / division) * (seg.usPerBeat / 1e6);
+      }
+
+      // ノート変換＆単音整理
+      const notes = rawNotes
+        .filter(n => n.endTick > n.startTick)
+        .map(n => ({
+          start: tickToSec(n.startTick),
+          end: tickToSec(n.endTick),
+          note: n.note
+        }))
+        .sort((a, b) => a.start - b.start || b.note - a.note);
+
+      // 小節線タイムスタンプ生成
+      timeSigEvents.sort((a, b) => a.tick - b.tick);
+      const measures = [];
+      let curTick = 0;
+      let tsIdx = 0;
+      while (curTick <= maxTick + division * 4) {
+        while (tsIdx + 1 < timeSigEvents.length && timeSigEvents[tsIdx + 1].tick <= curTick) {
+          tsIdx++;
+        }
+        const ts = timeSigEvents[tsIdx];
+        const ticksPerMeasure = division * ts.num * (4 / ts.den);
+        measures.push(tickToSec(curTick));
+        curTick += ticksPerMeasure;
+      }
+
+      let minNote = 60, maxNote = 72;
+      if (notes.length > 0) {
+        minNote = Math.min(...notes.map(n => n.note));
+        maxNote = Math.max(...notes.map(n => n.note));
+      }
+
+      return {
+        notes,
+        measures,
+        minNote,
+        maxNote,
+        duration: tickToSec(maxTick)
+      };
+    }
+
+    /* =========================================================================
+       4. LRC 歌詞パーサー（単語タイムタグ / 行タイムタグ自動分岐）
+       ========================================================================= */
+    function parseLrcText(lrcText) {
+      const rawLines = lrcText.split(/\r?\n/);
+      const parsedLines = [];
+      let hasWordTags = false;
+
+      const lineTagRegex = /\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]/g;
+      const wordTagRegex = /<(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?>/g;
+
+      function toSec(m, s, ms) {
+        const min = parseInt(m, 10);
+        const sec = parseInt(s, 10);
+        const frac = ms ? parseInt(ms.padEnd(3, '0'), 10) / 1000 : 0;
+        return min * 60 + sec + frac;
+      }
+
+      for (const raw of rawLines) {
+        const matches = [...raw.matchAll(lineTagRegex)];
+        if (matches.length === 0) continue;
+
+        const content = raw.replace(lineTagRegex, '').trim();
+        for (const m of matches) {
+          const lineStart = toSec(m[1], m[2], m[3]);
+          const wordMatches = [...content.matchAll(wordTagRegex)];
+
+          if (wordMatches.length > 0) {
+            hasWordTags = true;
+            const words = [];
+            let lastIdx = 0;
+            let currentWordTime = lineStart;
+
+            for (const wm of wordMatches) {
+              const beforeText = content.slice(lastIdx, wm.index);
+              if (beforeText) {
+                words.push({ time: currentWordTime, text: beforeText });
+              }
+              currentWordTime = toSec(wm[1], wm[2], wm[3]);
+              lastIdx = wm.index + wm[0].length;
+            }
+            const tailText = content.slice(lastIdx);
+            if (tailText) {
+              words.push({ time: currentWordTime, text: tailText });
+            }
+            parsedLines.push({
+              time: lineStart,
+              text: content.replace(wordTagRegex, ''),
+              words
+            });
+          } else {
+            parsedLines.push({
+              time: lineStart,
+              text: content,
+              words: null
+            });
+          }
+        }
+      }
+
+      parsedLines.sort((a, b) => a.time - b.time);
+      for (let i = 0; i < parsedLines.length; i++) {
+        parsedLines[i].endTime = (i + 1 < parsedLines.length) ? parsedLines[i + 1].time : parsedLines[i].time + 6;
+      }
+
+      return { hasWordTags, lines: parsedLines };
+    }
+
+    /* =========================================================================
+       5. リアルタイム・ピッチシフター (AudioWorklet OLA方式) & YINピッチ検出
+       ========================================================================= */
+    const PITCH_SHIFTER_WORKLET_CODE = `
+      class GranularPitchShifter extends AudioWorkletProcessor {
+        static get parameterDescriptors() {
+          return [{ name: 'pitchFactor', defaultValue: 1.0, minValue: 0.5, maxValue: 2.0 }];
+        }
+        constructor() {
+          super();
+          this.bufSize = 4096;
+          this.buffer = new Float32Array(this.bufSize);
+          this.writeIdx = 0;
+          this.phase = 0;
+        }
+        process(inputs, outputs, parameters) {
+          const input = inputs[0];
+          const output = outputs[0];
+          if (!input || !input[0]) return true;
+
+          const pitchFactor = parameters.pitchFactor[0];
+          const inCh0 = input[0];
+          const len = inCh0.length;
+          const grainSize = 1024;
+
+          for (let i = 0; i < len; i++) {
+            this.buffer[this.writeIdx] = inCh0[i];
+
+            if (Math.abs(pitchFactor - 1.0) < 0.001) {
+              for (let c = 0; c < output.length; c++) {
+                output[c][i] = inCh0[i];
+              }
+            } else {
+              const step = (1.0 - pitchFactor) / grainSize;
+              this.phase += step;
+              if (this.phase >= 1.0) this.phase -= 1.0;
+              if (this.phase < 0.0) this.phase += 1.0;
+
+              const p1 = this.phase;
+              const p2 = (this.phase + 0.5) % 1.0;
+
+              const d1 = p1 * grainSize;
+              const d2 = p2 * grainSize;
+
+              const idx1 = (this.writeIdx - d1 + this.bufSize) % this.bufSize;
+              const idx2 = (this.writeIdx - d2 + this.bufSize) % this.bufSize;
+
+              const i1a = Math.floor(idx1);
+              const i1b = (i1a + 1) % this.bufSize;
+              const f1 = idx1 - i1a;
+              const s1 = this.buffer[i1a] * (1 - f1) + this.buffer[i1b] * f1;
+
+              const i2a = Math.floor(idx2);
+              const i2b = (i2a + 1) % this.bufSize;
+              const f2 = idx2 - i2a;
+              const s2 = this.buffer[i2a] * (1 - f2) + this.buffer[i2b] * f2;
+
+              const w1 = 0.5 - 0.5 * Math.cos(2 * Math.PI * p1);
+              const w2 = 0.5 - 0.5 * Math.cos(2 * Math.PI * p2);
+              const outSample = s1 * w1 + s2 * w2;
+
+              for (let c = 0; c < output.length; c++) {
+                output[c][i] = outSample;
+              }
+            }
+            this.writeIdx = (this.writeIdx + 1) % this.bufSize;
+          }
+          return true;
+        }
+      }
+      registerProcessor('granular-pitch-shifter', GranularPitchShifter);
+    `;
+
+    // YINアルゴリズムによる高精度基本周波数（Hz）検出
+    function detectPitchYIN(buffer, sampleRate) {
+      const halfLen = Math.floor(buffer.length / 2);
+
+      // 1. RMS（無音チェック）
+      let rms = 0;
+      for (let i = 0; i < buffer.length; i++) rms += buffer[i] * buffer[i];
+      rms = Math.sqrt(rms / buffer.length);
+      if (rms < 0.015) return null;
+
+      // 2. 差分関数 & 累積平均正規化差分関数 (CMNDF)
+      const yinBuffer = new Float32Array(halfLen);
+      yinBuffer[0] = 1;
+      let runningSum = 0;
+
+      const minTau = Math.floor(sampleRate / 1100); // 上限 1100Hz (C6付近)
+      const maxTau = Math.min(halfLen - 1, Math.floor(sampleRate / 65)); // 下限 65Hz (C2付近)
+
+      for (let tau = 1; tau <= maxTau; tau++) {
+        let diff = 0;
+        for (let i = 0; i < halfLen; i++) {
+          const delta = buffer[i] - buffer[i + tau];
+          diff += delta * delta;
+        }
+        runningSum += diff;
+        yinBuffer[tau] = runningSum > 0 ? (diff * tau) / runningSum : 1;
+      }
+
+      // 3. しきい値探索
+      const threshold = 0.15;
+      let tauEstimate = -1;
+      for (let tau = minTau; tau <= maxTau; tau++) {
+        if (yinBuffer[tau] < threshold) {
+          while (tau + 1 <= maxTau && yinBuffer[tau + 1] < yinBuffer[tau]) {
+            tau++;
+          }
+          tauEstimate = tau;
+          break;
+        }
+      }
+      if (tauEstimate === -1) return null;
+
+      // 4. 放物線補間（サブサンプル精度）
+      let betterTau = tauEstimate;
+      if (tauEstimate > 0 && tauEstimate < maxTau) {
+        const s0 = yinBuffer[tauEstimate - 1];
+        const s1 = yinBuffer[tauEstimate];
+        const s2 = yinBuffer[tauEstimate + 1];
+        const denom = 2 * (2 * s1 - s2 - s0);
+        if (Math.abs(denom) > 1e-6) {
+          betterTau += (s2 - s0) / denom;
+        }
+      }
+
+      const freq = sampleRate / betterTau;
+      if (freq < 65 || freq > 1100) return null;
+      return 69 + 12 * Math.log2(freq / 440);
+    }
+
+    /* =========================================================================
+       6. 演奏準備・全画面＆横画面ロック・カウントダウン開始
+       ========================================================================= */
+    async function initAudioAndMic() {
+      if (!state.audioCtx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        state.audioCtx = new AudioCtx();
+        const blob = new Blob([PITCH_SHIFTER_WORKLET_CODE], { type: 'application/javascript' });
+        const url = URL.createObjectURL(blob);
+        try {
+          await state.audioCtx.audioWorklet.addModule(url);
+        } catch (e) {
+          console.warn('AudioWorklet初期化スキップ:', e);
+        }
+      }
+      if (state.audioCtx.state === 'suspended') {
+        await state.audioCtx.resume();
+      }
+
+      if (!state.micStream) {
+        state.micStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false
+          }
+        });
+        const micSource = state.audioCtx.createMediaStreamSource(state.micStream);
+        state.micAnalyser = state.audioCtx.createAnalyser();
+        state.micAnalyser.fftSize = 2048;
+        micSource.connect(state.micAnalyser);
+      }
+    }
+
+    async function requestLandscapeFullscreen() {
+      try {
+        const docEl = document.documentElement;
+        if (!document.fullscreenElement && docEl.requestFullscreen) {
+          await docEl.requestFullscreen();
+        } else if (!document.webkitFullscreenElement && docEl.webkitRequestFullscreen) {
+          await docEl.webkitRequestFullscreen();
+        }
+        if (screen.orientation && screen.orientation.lock) {
+          await screen.orientation.lock('landscape').catch(() => {});
+        }
+      } catch (e) {
+        // iOS Safari等ではフルスクリーンAPIが制限されるためCSSステージ表示に自動フォールバック
+      }
+    }
+
+    async function prepareAndStartPerformance() {
+      const statusEl = document.getElementById('prep-status');
+      const btnEl = document.getElementById('btn-start-sing');
+      btnEl.disabled = true;
+
+      try {
+        statusEl.textContent = 'マイク許可とオーディオ初期化中...';
+        await initAudioAndMic();
+        await requestLandscapeFullscreen();
+
+        statusEl.textContent = '楽曲データ（MIDI / LRC / 音源）を読み込み中...';
+        const song = state.currentSong;
+
+        if (song.isDemo) {
+          state.midiData = song.demoMidi;
+          state.lrcData = song.demoLrc;
+        } else {
+          const [midiRes, lrcRes] = await Promise.all([
+            fetch(song.midiUrl),
+            fetch(song.lrcUrl)
+          ]);
+          if (!midiRes.ok) throw new Error('MIDIファイルの読み込みに失敗しました');
+          if (!lrcRes.ok) throw new Error('LRC歌詞ファイルの読み込みに失敗しました');
+
+          const midiBuf = await midiRes.arrayBuffer();
+          const lrcTxt = await lrcRes.text();
+          state.midiData = parseMidiArrayBuffer(midiBuf);
+          state.lrcData = parseLrcText(lrcTxt);
+        }
+
+        // 伴奏オーディオ準備
+        if (state.bgAudioEl) {
+          state.bgAudioEl.pause();
+          state.bgAudioEl = null;
+        }
+
+        if (!song.isDemo) {
+          state.bgAudioEl = new Audio();
+          state.bgAudioEl.crossOrigin = 'anonymous';
+          state.bgAudioEl.src = song.audioUrl;
+          await new Promise((resolve, reject) => {
+            state.bgAudioEl.oncanplaythrough = resolve;
+            state.bgAudioEl.onerror = () => reject(new Error('音声ファイル(mp3)の読み込みに失敗しました'));
+            state.bgAudioEl.load();
+          });
+
+          const trackSource = state.audioCtx.createMediaElementSource(state.bgAudioEl);
+          try {
+            state.pitchShiftNode = new AudioWorkletNode(state.audioCtx, 'granular-pitch-shifter');
+            state.pitchShiftNode.parameters.get('pitchFactor').value = Math.pow(2, state.keyShift / 12);
+            trackSource.connect(state.pitchShiftNode);
+            state.pitchShiftNode.connect(state.audioCtx.destination);
+          } catch (e) {
+            trackSource.connect(state.audioCtx.destination);
+          }
+        }
+
+        // 演奏画面セットアップ
+        document.getElementById('play-bg-img').src = song.bgUrl || '';
+        document.getElementById('hud-song-title').textContent = song.title;
+        updateHudKeyDisplay();
+        showScreen('screen-play');
+
+        // 3秒カウントダウン
+        await runCountdown(3);
+        startPlaybackLoop();
+
+      } catch (err) {
+        alert(`開始エラー: ${err.message}`);
+        statusEl.textContent = `エラー: ${err.message}`;
+      } finally {
+        btnEl.disabled = false;
+      }
+    }
+
+    function runCountdown(seconds) {
+      return new Promise(resolve => {
+        const overlay = document.getElementById('countdown-overlay');
+        const numEl = document.getElementById('countdown-num');
+        overlay.classList.add('active');
+        let count = seconds;
+        numEl.textContent = count;
+
+        const timer = setInterval(() => {
+          count--;
+          if (count > 0) {
+            numEl.textContent = count;
+          } else {
+            clearInterval(timer);
+            overlay.classList.remove('active');
+            resolve();
+          }
+        }, 1000);
+      });
+    }
+
+    function updateHudKeyDisplay() {
+      const k = state.keyShift;
+      document.getElementById('hud-key-val').textContent = k > 0 ? `+${k}` : (k === 0 ? '±0' : `${k}`);
+      if (state.pitchShiftNode) {
+        state.pitchShiftNode.parameters.get('pitchFactor').value = Math.pow(2, k / 12);
+      }
+    }
+
+    function changeLiveKey(delta) {
+      state.keyShift = Math.max(-6, Math.min(6, state.keyShift + delta));
+      updateHudKeyDisplay();
+    }
+
+    /* =========================================================================
+       7. 演奏メインループ（音程バー描画・歌詞同期・リアルタイム判定）
+       ========================================================================= */
+    function startPlaybackLoop() {
+      state.isPlaying = true;
+      state.userPitchHistory = [];
+      state.particles = [];
+      state.noteSmoothBuffer = [];
+      state.lastValidNote = null;
+
+      const timeBuffer = new Float32Array(state.micAnalyser.fftSize);
+      const canvas = document.getElementById('pitch-canvas');
+      const ctx = canvas.getContext('2d');
+
+      const startWallTime = performance.now();
+      let demoSynthOsc = null;
+      let demoSynthGain = null;
+
+      if (state.currentSong.isDemo) {
+        demoSynthOsc = state.audioCtx.createOscillator();
+        demoSynthGain = state.audioCtx.createGain();
+        demoSynthOsc.type = 'triangle';
+        demoSynthGain.gain.value = 0;
+        demoSynthOsc.connect(demoSynthGain);
+        demoSynthGain.connect(state.audioCtx.destination);
+        demoSynthOsc.start();
+      } else {
+        state.bgAudioEl.currentTime = 0;
+        state.bgAudioEl.play();
+        state.bgAudioEl.onended = () => {
+          if (state.isPlaying) finishPerformance();
+        };
+      }
+
+      const totalDuration = state.currentSong.isDemo
+        ? state.midiData.duration + 1.5
+        : (state.bgAudioEl.duration || state.midiData.duration);
+
+      function loop() {
+        if (!state.isPlaying) {
+          if (demoSynthOsc) { try { demoSynthOsc.stop(); } catch(e){} }
+          return;
+        }
+
+        // 現在時刻（再生位置）
+        const currentTime = state.currentSong.isDemo
+          ? (performance.now() - startWallTime) / 1000
+          : state.bgAudioEl.currentTime;
+
+        if (state.currentSong.isDemo && currentTime >= totalDuration) {
+          if (demoSynthOsc) { try { demoSynthOsc.stop(); } catch(e){} }
+          finishPerformance();
+          return;
+        }
+
+        document.getElementById('hud-time-val').textContent = `${formatTime(currentTime)} / ${formatTime(totalDuration)}`;
+
+        // デモ用簡易ガイドメロディ再生
+        if (demoSynthOsc) {
+          const activeDemoNote = state.midiData.notes.find(n => currentTime >= n.start && currentTime <= n.end);
+          if (activeDemoNote) {
+            const freq = 440 * Math.pow(2, (activeDemoNote.note + state.keyShift - 69) / 12);
+            demoSynthOsc.frequency.setTargetAtTime(freq, state.audioCtx.currentTime, 0.01);
+            demoSynthGain.gain.setTargetAtTime(0.08, state.audioCtx.currentTime, 0.02);
+          } else {
+            demoSynthGain.gain.setTargetAtTime(0, state.audioCtx.currentTime, 0.02);
+          }
+        }
+
+        // 1. マイクピッチ検出
+        state.micAnalyser.getFloatTimeDomainData(timeBuffer);
+        const detectedMidi = detectPitchYIN(timeBuffer, state.audioCtx.sampleRate);
+
+        let smoothedUserNote = null;
+        if (detectedMidi !== null) {
+          state.noteSmoothBuffer.push(detectedMidi);
+          if (state.noteSmoothBuffer.length > 3) state.noteSmoothBuffer.shift();
+          const sorted = [...state.noteSmoothBuffer].sort((a, b) => a - b);
+          smoothedUserNote = sorted[Math.floor(sorted.length / 2)];
+          state.lastValidNote = smoothedUserNote;
+          state.lastValidTime = currentTime;
+          document.getElementById('hud-user-note').textContent = midiToNoteName(smoothedUserNote);
+        } else {
+          if (currentTime - state.lastValidTime > 0.15) {
+            state.noteSmoothBuffer = [];
+            document.getElementById('hud-user-note').textContent = '--';
+          }
+        }
+
+        // 2. 遅延補正を適用した判定時刻
+        const judgedTime = Math.max(0, currentTime - (state.latencyMs / 1000));
+        const targetNoteObj = state.midiData.notes.find(n => judgedTime >= n.start && judgedTime <= n.end);
+
+        let snappedUserNote = smoothedUserNote;
+        let isGood = false;
+        let diff = null;
+
+        if (targetNoteObj) {
+          const shiftedTarget = targetNoteObj.note + state.keyShift;
+          if (smoothedUserNote !== null) {
+            // オクターブ自動正規化 (-6.0 〜 +6.0 半音差)
+            diff = ((((smoothedUserNote - shiftedTarget) % 12) + 18) % 12) - 6;
+            snappedUserNote = shiftedTarget + diff; // オクターブ違いでもターゲット高さ付近に描画
+            isGood = Math.abs(diff) <= 0.5;
+          }
+          state.userPitchHistory.push({
+            time: judgedTime,
+            rawNote: smoothedUserNote,
+            snappedNote: snappedUserNote,
+            targetNote: shiftedTarget,
+            diff,
+            isGood
+          });
+        } else if (smoothedUserNote !== null) {
+          state.userPitchHistory.push({
+            time: judgedTime,
+            rawNote: smoothedUserNote,
+            snappedNote: smoothedUserNote,
+            targetNote: null,
+            diff: null,
+            isGood: false
+          });
+        }
+
+        // 履歴の古いデータ削除（直近15秒のみ描画用に保持しつつ、採点集計は別配列で行う）
+        recordScoringBucket(judgedTime, targetNoteObj, diff, isGood);
+
+        // 3. 音程バーCanvas描画（4小節ページ切り替え方式）
+        renderPitchCanvas(ctx, canvas, currentTime, judgedTime, snappedUserNote, isGood);
+
+        // 4. LRC歌詞更新
+        renderLyrics(currentTime);
+
+        state.animFrameId = requestAnimationFrame(loop);
+      }
+
+      // 採点用バケット初期化（0.25秒刻み）
+      initScoringBuckets(totalDuration);
+      state.animFrameId = requestAnimationFrame(loop);
+    }
+
+    function renderPitchCanvas(ctx, canvas, currentTime, judgedTime, currentSnappedNote, isGood) {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      if (canvas.width !== Math.floor(rect.width * dpr) || canvas.height !== Math.floor(rect.height * dpr)) {
+        canvas.width = Math.floor(rect.width * dpr);
+        canvas.height = Math.floor(rect.height * dpr);
+      }
+      ctx.save();
+      ctx.scale(dpr, dpr);
+
+      const W = rect.width;
+      const H = rect.height;
+      ctx.clearRect(0, 0, W, H);
+
+      // 現在の表示ページ（4小節単位でページ切り替え）
+      const measures = state.midiData.measures;
+      let currentMeasureIdx = 0;
+      for (let i = 0; i < measures.length; i++) {
+        if (measures[i] <= currentTime) currentMeasureIdx = i;
+        else break;
+      }
+      const measuresPerPage = 4;
+      const pageStartMeasure = Math.floor(currentMeasureIdx / measuresPerPage) * measuresPerPage;
+      const pageEndMeasure = Math.min(measures.length - 1, pageStartMeasure + measuresPerPage);
+
+      const pageStartTime = measures[pageStartMeasure] ?? 0;
+      const pageEndTime = (measures[pageEndMeasure] && measures[pageEndMeasure] > pageStartTime)
+        ? measures[pageEndMeasure]
+        : pageStartTime + 8.0;
+      const pageSpan = Math.max(1.0, pageEndTime - pageStartTime);
+
+      const timeToX = (t) => ((t - pageStartTime) / pageSpan) * W;
+
+      // 縦軸スケール（曲の最低音〜最高音＋キー移調分に合わせて自動ズーム）
+      const minNote = state.midiData.minNote + state.keyShift - 3;
+      const maxNote = state.midiData.maxNote + state.keyShift + 3;
+      const noteSpan = Math.max(10, maxNote - minNote);
+      const noteToY = (n) => H - ((n - minNote) / noteSpan) * H;
+      const barHeight = Math.max(8, (H / noteSpan) * 0.72);
+
+      // 横ガイドライン（薄い音階グリッド）
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+      ctx.lineWidth = 1;
+      for (let n = Math.ceil(minNote); n <= Math.floor(maxNote); n++) {
+        const y = noteToY(n);
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(W, y);
+        ctx.stroke();
+      }
+
+      // 1小節ごとの薄い縦線
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+      ctx.lineWidth = 1;
+      for (let m = pageStartMeasure; m <= pageEndMeasure; m++) {
+        const x = timeToX(measures[m]);
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, H);
+        ctx.stroke();
+      }
+
+      // 正解MIDIノートブロック描画
+      for (const noteObj of state.midiData.notes) {
+        if (noteObj.end < pageStartTime || noteObj.start > pageEndTime) continue;
+        const x1 = Math.max(0, timeToX(noteObj.start));
+        const x2 = Math.min(W, timeToX(noteObj.end));
+        const w = Math.max(3, x2 - x1);
+        const y = noteToY(noteObj.note + state.keyShift) - barHeight / 2;
+
+        // ブロック背景
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+        ctx.beginPath();
+        ctx.roundRect(x1, y, w, barHeight, 4);
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(0, 229, 255, 0.65)';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+      }
+
+      // ユーザーの歌唱軌跡（ページ内の履歴）
+      const pageHistory = state.userPitchHistory.filter(p => p.time >= pageStartTime && p.time <= pageEndTime);
+      for (let i = 0; i < pageHistory.length; i++) {
+        const pt = pageHistory[i];
+        if (pt.snappedNote === null) continue;
+        const x = timeToX(pt.time);
+        const y = noteToY(pt.snappedNote);
+
+        ctx.fillStyle = pt.isGood ? '#ffd700' : '#ff2a85';
+        ctx.beginPath();
+        ctx.arc(x, y, pt.isGood ? 3.5 : 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 現在の歌唱ポイント発光＆パーティクル
+      if (currentSnappedNote !== null && judgedTime >= pageStartTime && judgedTime <= pageEndTime) {
+        const cx = timeToX(judgedTime);
+        const cy = noteToY(currentSnappedNote);
+
+        ctx.save();
+        ctx.shadowBlur = 14;
+        ctx.shadowColor = isGood ? '#ffd700' : '#00e5ff';
+        ctx.fillStyle = isGood ? '#fff275' : '#00e5ff';
+        ctx.beginPath();
+        ctx.arc(cx, cy, isGood ? 6 : 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        if (isGood && Math.random() < 0.6) {
+          state.particles.push({
+            x: cx,
+            y: cy,
+            vx: (Math.random() - 0.5) * 2.5,
+            vy: (Math.random() - 0.8) * 2.5,
+            alpha: 1.0,
+            size: 2 + Math.random() * 2.5
+          });
+        }
+      }
+
+      // パーティクル更新・描画
+      for (let i = state.particles.length - 1; i >= 0; i--) {
+        const p = state.particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha -= 0.04;
+        if (p.alpha <= 0) {
+          state.particles.splice(i, 1);
+          continue;
+        }
+        ctx.fillStyle = `rgba(255, 215, 0, ${p.alpha})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 再生カーソル（プレイヘッド）
+      const cursorX = timeToX(currentTime);
+      ctx.strokeStyle = 'rgba(0, 229, 255, 0.85)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(cursorX, 0);
+      ctx.lineTo(cursorX, H);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function renderLyrics(currentTime) {
+      const curEl = document.getElementById('lyric-current');
+      const nextEl = document.getElementById('lyric-next');
+      const lines = state.lrcData.lines;
+
+      if (!lines || lines.length === 0) {
+        curEl.textContent = '♪ ♪ ♪';
+        nextEl.textContent = '';
+        return;
+      }
+
+      // 先読み（0.3秒前から行を表示）
+      let idx = -1;
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].time - 0.3 <= currentTime) idx = i;
+        else break;
+      }
+
+      if (idx === -1) {
+        curEl.textContent = '♪ イントロ ♪';
+        nextEl.textContent = lines[0].text;
+        return;
+      }
+
+      const curLine = lines[idx];
+      const nextLine = lines[idx + 1] || null;
+
+      if (state.lrcData.hasWordTags && curLine.words) {
+        // 単語単位タイムタグ：カラオケ風文字色ワイプ変化
+        let html = '';
+        for (let w = 0; w < curLine.words.length; w++) {
+          const word = curLine.words[w];
+          const nextWordTime = (w + 1 < curLine.words.length) ? curLine.words[w + 1].time : curLine.endTime;
+          const dur = Math.max(0.08, nextWordTime - word.time);
+          let wipe = 0;
+          if (currentTime >= nextWordTime) wipe = 100;
+          else if (currentTime > word.time) wipe = ((currentTime - word.time) / dur) * 100;
+          html += `<span class="karaoke-word" style="--wipe:${wipe.toFixed(1)}%">${escapeHtml(word.text)}</span>`;
+        }
+        curEl.innerHTML = html;
+      } else {
+        // 行単位ハイライト切り替え
+        curEl.textContent = curLine.text || '♪';
+      }
+
+      nextEl.textContent = nextLine ? nextLine.text : '';
+    }
+
+    /* =========================================================================
+       8. 採点集計＆詳細音程ズレ分析
+       ========================================================================= */
+    const BUCKET_SEC = 0.5;
+    let scoringBuckets = [];
+
+    function initScoringBuckets(duration) {
+      const count = Math.ceil(duration / BUCKET_SEC) + 2;
+      scoringBuckets = Array.from({ length: count }, (_, i) => ({
+        idx: i,
+        startTime: i * BUCKET_SEC,
+        endTime: (i + 1) * BUCKET_SEC,
+        hasTarget: false,
+        totalFrames: 0,
+        goodFrames: 0,
+        diffSum: 0,
+        diffCount: 0
+      }));
+    }
+
+    function recordScoringBucket(time, targetNoteObj, diff, isGood) {
+      const idx = Math.floor(time / BUCKET_SEC);
+      const b = scoringBuckets[idx];
+      if (!b || !targetNoteObj) return;
+
+      b.hasTarget = true;
+      b.totalFrames++;
+      if (isGood) b.goodFrames++;
+      if (diff !== null) {
+        b.diffSum += diff;
+        b.diffCount++;
+      }
+    }
+
+    function stopPlaybackResources() {
+      state.isPlaying = false;
+      if (state.animFrameId) cancelAnimationFrame(state.animFrameId);
+      if (state.bgAudioEl) {
+        state.bgAudioEl.pause();
+      }
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+
+    function stopAndExitPlay() {
+      stopPlaybackResources();
+      showScreen('screen-select');
+    }
+
+    function finishPerformanceEarly() {
+      finishPerformance();
+    }
+
+    function retryCurrentSong() {
+      selectSong(state.currentSong);
+    }
+
+    function finishPerformance() {
+      stopPlaybackResources();
+
+      // 採点計算
+      let totalTargetFrames = 0;
+      let totalGoodFrames = 0;
+      let overallDiffSum = 0;
+      let overallDiffCount = 0;
+
+      for (const b of scoringBuckets) {
+        if (b.hasTarget && b.totalFrames > 0) {
+          totalTargetFrames += b.totalFrames;
+          totalGoodFrames += b.goodFrames;
+          overallDiffSum += b.diffSum;
+          overallDiffCount += b.diffCount;
+        }
+      }
+
+      const accuracy = totalTargetFrames > 0 ? (totalGoodFrames / totalTargetFrames) * 100 : 0;
+      // 100点満点スコア算出
+      const score = Math.min(100, Math.round(accuracy * 100) / 100);
+
+      // ハイスコア更新判定
+      const songId = state.currentSong.id;
+      const prevRecord = state.highScores[songId];
+      let isNewRecord = false;
+      if (!prevRecord || score > prevRecord.score) {
+        state.highScores[songId] = { score, accuracy };
+        localStorage.setItem(STORAGE_KEY_SCORES, JSON.stringify(state.highScores));
+        isNewRecord = score > 0;
+        renderSongList();
+      }
+
+      const bestScore = state.highScores[songId]?.score ?? score;
+
+      // 全体傾向コメント
+      let tendencyText = '安定したピッチです';
+      if (overallDiffCount > 0) {
+        const avgDiff = overallDiffSum / overallDiffCount;
+        if (avgDiff > 0.25) tendencyText = `全体的に高め (+${avgDiff.toFixed(2)}半音)`;
+        else if (avgDiff < -0.25) tendencyText = `全体的に低め (${avgDiff.toFixed(2)}半音)`;
+      }
+
+      document.getElementById('res-score').innerHTML = `${score.toFixed(2)}<span style="font-size:1rem;">点</span>`;
+      document.getElementById('res-accuracy').textContent = `${accuracy.toFixed(1)}%`;
+      document.getElementById('res-highscore').innerHTML = `${bestScore.toFixed(2)}<span style="font-size:0.9rem;">点</span>`;
+      document.getElementById('res-tendency-summary').textContent = tendencyText;
+      document.getElementById('res-new-record').style.display = isNewRecord ? 'inline-block' : 'none';
+
+      showScreen('screen-result');
+      renderAnalysisTimelineAndList();
+    }
+
+    function findLyricAtTime(t) {
+      const lines = state.lrcData?.lines || [];
+      for (let i = lines.length - 1; i >= 0; i--) {
+        if (lines[i].time <= t + 0.5) return lines[i].text || '（間奏・ハミング）';
+      }
+      return '（イントロ部分）';
+    }
+
+    function renderAnalysisTimelineAndList() {
+      const canvas = document.getElementById('analysis-canvas');
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.floor(rect.width * dpr);
+      canvas.height = Math.floor(rect.height * dpr);
+      ctx.scale(dpr, dpr);
+
+      const W = rect.width;
+      const H = rect.height;
+      ctx.clearRect(0, 0, W, H);
+
+      const activeBuckets = scoringBuckets.filter(b => b.startTime <= (state.midiData.duration + 1));
+      const count = Math.max(1, activeBuckets.length);
+      const barW = W / count;
+
+      const missCandidates = [];
+
+      activeBuckets.forEach((b, i) => {
+        const x = i * barW;
+        if (!b.hasTarget || b.totalFrames === 0) {
+          ctx.fillStyle = '#1f283d';
+          ctx.fillRect(x, H * 0.35, Math.max(1, barW - 0.5), H * 0.3);
+          return;
+        }
+
+        const acc = b.goodFrames / b.totalFrames;
+        let color = '#00e676'; // Good
+        if (acc < 0.45) {
+          color = '#ff3d57'; // Miss多発
+          const avgDiff = b.diffCount > 0 ? (b.diffSum / b.diffCount) : 0;
+          missCandidates.push({
+            time: b.startTime,
+            acc,
+            avgDiff,
+            hasVoice: b.diffCount > 0,
+            lyric: findLyricAtTime(b.startTime)
+          });
+        } else if (acc < 0.75) {
+          color = '#ffd700'; // ややズレ
+        }
+
+        const barH = Math.max(14, acc * (H * 0.8));
+        ctx.fillStyle = color;
+        ctx.fillRect(x, H - barH - 10, Math.max(1.5, barW - 0.5), barH);
+      });
+
+      // グラフタップ時の詳細インスペクタ
+      canvas.onclick = (e) => {
+        const clickX = e.offsetX;
+        const idx = Math.min(activeBuckets.length - 1, Math.max(0, Math.floor((clickX / W) * activeBuckets.length)));
+        const b = activeBuckets[idx];
+        const infoEl = document.getElementById('analysis-hover-info');
+        if (!b.hasTarget || b.totalFrames === 0) {
+          infoEl.textContent = `${formatTime(b.startTime)} : 休符・間奏区間`;
+        } else {
+          const pct = ((b.goodFrames / b.totalFrames) * 100).toFixed(0);
+          const avgD = b.diffCount > 0 ? (b.diffSum / b.diffCount) : 0;
+          const dir = !b.diffCount ? '未発声' : (avgD > 0.2 ? `+${avgD.toFixed(1)}半音高め` : (avgD < -0.2 ? `${avgD.toFixed(1)}半音低め` : 'ほぼ正確'));
+          infoEl.textContent = `${formatTime(b.startTime)} | 一致率 ${pct}% (${dir})`;
+        }
+      };
+
+      // 近接したミス区間をグループ化してワーストフレーズを抽出
+      const groupedMisses = [];
+      for (const m of missCandidates) {
+        const last = groupedMisses[groupedMisses.length - 1];
+        if (last && m.time - last.endTime <= 1.5) {
+          last.endTime = m.time + BUCKET_SEC;
+          last.minAcc = Math.min(last.minAcc, m.acc);
+        } else {
+          groupedMisses.push({
+            startTime: m.time,
+            endTime: m.time + BUCKET_SEC,
+            minAcc: m.acc,
+            avgDiff: m.avgDiff,
+            hasVoice: m.hasVoice,
+            lyric: m.lyric
+          });
+        }
+      }
+
+      groupedMisses.sort((a, b) => a.minAcc - b.minAcc);
+      const topMisses = groupedMisses.slice(0, 6);
+
+      const listEl = document.getElementById('miss-phrases-list');
+      if (topMisses.length === 0) {
+        listEl.innerHTML = `<div style="color: var(--accent-green); font-weight: 700; padding: 8px;">素晴らしい！大きく音程が外れたフレーズはありませんでした。</div>`;
+      } else {
+        listEl.innerHTML = topMisses.map(item => {
+          let advice = '声量が小さいか未発声';
+          if (item.hasVoice) {
+            if (item.avgDiff > 0.3) advice = `シャープ傾向 (+${item.avgDiff.toFixed(1)}半音)`;
+            else if (item.avgDiff < -0.3) advice = `フラット傾向 (${item.avgDiff.toFixed(1)}半音)`;
+            else advice = '音程の揺れ・切り替えズレ';
+          }
+          return `
+            <div class="miss-item">
+              <span class="miss-time">${formatTime(item.startTime)}</span>
+              <span class="miss-lyric">${escapeHtml(item.lyric)}</span>
+              <span class="miss-tendency">${advice}</span>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    /* =========================================================================
+       9. 遅延テスト（キャリブレーション）機能
+       ========================================================================= */
+    function openCalibration() {
+      updateLatencyUI();
+      showScreen('screen-calib');
+    }
+
+    function closeCalibration() {
+      showScreen('screen-select');
+    }
+
+    function onLatencySliderChange(val) {
+      state.latencyMs = parseInt(val, 10);
+      localStorage.setItem(STORAGE_KEY_LATENCY, String(state.latencyMs));
+      updateLatencyUI();
+    }
+
+    async function runAutoLatencyTest() {
+      const btn = document.getElementById('btn-auto-calib');
+      const statusEl = document.getElementById('calib-status');
+      btn.disabled = true;
+
+      try {
+        await initAudioAndMic();
+        const measurements = [];
+
+        for (let trial = 1; trial <= 3; trial++) {
+          statusEl.textContent = `測定中 (${trial}/3回目)... 静かにお待ちください`;
+          await new Promise(r => setTimeout(r, 600));
+
+          const latency = await measureSingleBeepRoundTrip();
+          if (latency !== null && latency >= 10 && latency <= 600) {
+            measurements.push(latency);
+          }
+        }
+
+        if (measurements.length > 0) {
+          const avg = Math.round(measurements.reduce((a, b) => a + b, 0) / measurements.length);
+          onLatencySliderChange(avg);
+          statusEl.textContent = `✅ 測定完了！平均遅延: ${avg} ms を保存しました`;
+        } else {
+          statusEl.textContent = '⚠️ マイクでテスト音を検出できませんでした。音量を上げて再試行するかスライダーで調整してください。';
+        }
+      } catch (e) {
+        statusEl.textContent = `エラー: ${e.message}`;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function measureSingleBeepRoundTrip() {
+      return new Promise(resolve => {
+        const ctx = state.audioCtx;
+        const analyser = state.micAnalyser;
+        const buf = new Float32Array(analyser.fftSize);
+
+        // 現在の環境ノイズレベル計測
+        analyser.getFloatTimeDomainData(buf);
+        let basePeak = 0;
+        for (let i = 0; i < buf.length; i++) basePeak = Math.max(basePeak, Math.abs(buf[i]));
+        const triggerThreshold = Math.max(0.08, basePeak * 2.8);
+
+        // 1000Hzの短いビープ音再生
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 1000;
+        gain.gain.setValueAtTime(0.6, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        const startTime = performance.now();
+        osc.start();
+        osc.stop(ctx.currentTime + 0.09);
+
+        const checkInterval = setInterval(() => {
+          const elapsed = performance.now() - startTime;
+          if (elapsed > 650) {
+            clearInterval(checkInterval);
+            resolve(null);
+            return;
+          }
+          analyser.getFloatTimeDomainData(buf);
+          let peak = 0;
+          for (let i = 0; i < buf.length; i++) peak = Math.max(peak, Math.abs(buf[i]));
+          if (peak > triggerThreshold && elapsed > 15) {
+            clearInterval(checkInterval);
+            resolve(elapsed);
+          }
+        }, 4);
+      });
+    }
+
+    /* =========================================================================
+       10. フォールバック用内蔵デモデータ（songs.txt不在時の動作確認用）
+       ========================================================================= */
+    function loadDemoSong() {
+      const notes = [
+        { start: 1.0, end: 1.45, note: 60 }, { start: 1.5, end: 1.95, note: 60 },
+        { start: 2.0, end: 2.45, note: 67 }, { start: 2.5, end: 2.95, note: 67 },
+        { start: 3.0, end: 3.45, note: 69 }, { start: 3.5, end: 3.95, note: 69 },
+        { start: 4.0, end: 4.90, note: 67 },
+        { start: 5.0, end: 5.45, note: 65 }, { start: 5.5, end: 5.95, note: 65 },
+        { start: 6.0, end: 6.45, note: 64 }, { start: 6.5, end: 6.95, note: 64 },
+        { start: 7.0, end: 7.45, note: 62 }, { start: 7.5, end: 7.95, note: 62 },
+        { start: 8.0, end: 8.90, note: 60 }
+      ];
+      const demoSong = {
+        id: 'demo_001',
+        title: 'キラキラ星（テスト用ガイド音源）',
+        artist: 'Demo Synthesizer',
+        isDemo: true,
+        demoMidi: {
+          notes,
+          measures: [0, 2, 4, 6, 8, 10],
+          minNote: 60,
+          maxNote: 69,
+          duration: 9.2
+        },
+        demoLrc: parseLrcText(`[00:01.00]<00:01.00>き<00:01.50>ら<00:02.00>き<00:02.50>ら<00:03.00>ひ<00:03.50>か<00:04.00>る\n[00:05.00]<00:05.00>お<00:05.50>そ<00:06.00>ら<00:06.50>の<00:07.00>ほ<00:07.50>し<00:08.00>よ`)
+      };
+      selectSong(demoSong);
+    }
+
+    // 起動時初期化
+    window.addEventListener('DOMContentLoaded', () => {
+      updateLatencyUI();
+      loadSongsTxt();
+    });
+  </script>
+</body>
+</html>
